@@ -1,0 +1,7 @@
+# Vendored jars for the Deephaven server image are placed here by
+# scripts/build-image.sh. They include:
+#   - deephaven-iceberg, deephaven-kafka extensions
+#   - iceberg-aws-bundle, kafka-clients
+#   - oms-protobuf-messages (built from :protobuf)
+# All are excluded from version control by the global *.jar rule with an explicit
+# !deephaven-server/extras/*.jar exception in the root .gitignore.

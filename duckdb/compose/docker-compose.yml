@@ -1,0 +1,21 @@
+services:
+  duckdb:
+    image: davidgasquez/duckdb:1.0.0
+    container_name: oms-duckdb
+    hostname: duckdb
+    stdin_open: true
+    tty: true
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-adminadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-iceberg-warehouse}
+    volumes:
+      - ../scripts:/scripts:ro
+      - ../queries:/queries:ro
+    networks:
+      - oms-net
+
+networks:
+  oms-net:
+    name: ${COMPOSE_NETWORK:-oms-net}
+    external: true

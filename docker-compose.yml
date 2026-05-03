@@ -1,0 +1,11 @@
+# Umbrella compose: pulls in the per-module composes via compose v2 `include:`.
+# Each per-module compose remains independently runnable; bringing the umbrella up
+# is equivalent to bringing each up by hand.
+include:
+  - kafka-server/compose/docker-compose.yml
+  - deephaven-server/compose/docker-compose.yml
+  - duckdb/compose/docker-compose.yml
+
+networks:
+  oms-net:
+    name: ${COMPOSE_NETWORK:-oms-net}

@@ -23,3 +23,19 @@
 hs_err_pid*
 replay_pid*
 /.idea
+
+# Gradle / IDE
+build/
+.gradle/
+bin/
+out/
+*.iml
+
+# Local container volumes
+data/
+
+# Vendored jars in deephaven-server need to ship
+!deephaven-server/extras/*.jar
+
+# Gradle wrapper jar must ship
+!gradle/wrapper/gradle-wrapper.jar
