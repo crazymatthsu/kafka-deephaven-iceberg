@@ -1,0 +1,88 @@
+- project name ; kafka-deephaven-iceberg
+- use gradle to build for this project
+- modules in this projects
+    - protobuf module 
+        - protobuf objects generation for FIX protocal messages type 35=D,G,F,8, for a full order management life cycle messages  
+            - name space : com.oms
+            - create .proto files for NewOrderSingle/OrderCancelReplaceRequest/OrderCancelRequest/ExecutionReport 
+            - compile .proto into java
+          
+    - kafka-server ( from docker ) module 
+      - config and scripts to start up kafka in podman (on windows) and docker(on linux) using docker compose 
+          - setup kafka in podman/docker 
+          - start up kafka in podman/docker
+          - stop kafka in podman/docker 
+      - kafka producer java code to send protobuf object
+      - kafka consumer java code to consumer protobuf object
+      
+    - oms-fix-simulator module
+      - protobuf FIX messages publisher to kafka 
+      - requirements : 
+        - based on FIX protocol 4.2, generate test messages of NewOrderSingle/OrderCancelReplaceRequest/OrderCancelRequest/ExecutionReport
+        - publish the protobuf FIX messages defined and code generated above to a single Kafka topic 'oms-fix-proto' 
+        - on NewOrderSingle (35=D) order, 
+          - tag 11 ClOrdID needs to be unique for each NewOrderSingle (35=D) message 
+          - populate required fields : symbol, side, qty, order type(limit or market), price ( if limit order )
+          - tag 1 ( account ) : one client account can send multiple orders  
+        - on OrderCancelReplaceRequest(35=G), 
+          - one order can have multiple OrderCancelReplaceRequest(35=G)
+          - tag 41 OrigClOrdID needs to link back to the NewOrderSingle (35=D)'s tag 11 ( standard FIX protocol ID linking logic )
+          - tag 11 (ClOrdID) needs to be a new unique ID 
+        - on OrderCancelRequest(35=F), 
+          - one order will have zero or one OrderCancelRequest(35=F)
+          - tag 41 OrigClOrdID needs to link back to the NewOrderSingle (35=D)'s tag 11 ( standard FIX protocol ID linking logic ) or OrderCancelReplaceRequest(35=G)'s tag 11 
+          - tag 11 (ClOrdID) needs to be a new unique ID
+        - on ExecutionReport (35=8), generate simulated messages for 
+          - New Order Ack 
+            - after sending NewOrderSingle(35=D), generate new order ack  
+            - tag 37 OrdID needs to be unique 
+            
+          - partial fills 
+            - update cum qty, leave qty , last price, last qty
+          - fully fills
+          - order completed 
+          - quantity fields relationship 
+            - OrderQty (38) = CumQty (14) + LeavesQty (151)
+          - ID generation 
+            - tag 11: needs to be linked back to NewOrderSingle(35=D) or OrderCancelReplaceRequest(35=G) or OrderCancelRequest(35=F)
+            - tag 17: execution id needs to be unique
+    - deephaven-server ( from docker image ) module 
+        - config and scripts to start up deephaven in  podman (on windows) and docker(on linux) using docker compose
+        - gradle build should package kafka and icerberg libraries to allow deephaven server to 
+          - subscribe from kafka 
+          - publish to kafka 
+          - write to iceberg in parquet format to a configurable file path 
+    - deephaven-oms module 
+      - requirements 
+        - this module will be run embedded inside deephaven server 
+        - subscribe from a single Kafka topic 'oms-fix-proto'
+        - if needed, use java as extra deephaven libraries 
+        - use python to subscribe from a single kafka topic, and route different FIX message types, based on tag 35, to different deephaven tables 
+          - orders : key by tag 11 ClOrdID 
+          - replaces : key by tag 11 ClOrdID
+          - cancels : key by tag 11 ClOrdID 
+          - executions : key by tag 37 OrderID 
+          - orders_wexecs: key by tag 37, an aggregated view of current order state , including 
+            - account 
+            - symbol
+            - side
+            - order type 
+            - all qty fields, like order qty, cumQty, leavesQty ... etc 
+            - all price fields, like order limit price, last price, ... etc 
+            - all linking id fields like tag 11, 41, 37 ... etc 
+            - transaction time fields 
+        - for above deephaven tables, we need to persist them into iceberg 
+          - on windows, use minio to simulate S3 
+          - on AWS cloud, persist to S3 buckets, that can be used by Snowflake    
+        - research if the deephaven 'rollup' function can be used to join different tables : orders, replaces, cancels, executions ? 
+    - minio to simulate S3 for deephaven to write parquet files to  
+    - duckdb ( from docker image ) 
+        - query scripts from iceberg  
+        - tables : NewOrderSingle/OrderCancelReplaceRequest/OrderCancelRequest/ExecutionReport
+        - query of individual table : 
+          - by account, 
+          - by symbol 
+          - by order id 
+          - or by all above 
+        - join 
+          - based on all tables, query the latest state of the order 
