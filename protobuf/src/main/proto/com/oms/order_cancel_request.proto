@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package com.oms;
+
+option java_package = "com.oms";
+option java_multiple_files = true;
+
+import "com/oms/common.proto";
+
+// FIX 4.2 OrderCancelRequest (35=F)
+message OrderCancelRequest {
+  Header header = 1;
+  string orig_cl_ord_id = 2;  // FIX tag 41 — points at chain's latest ClOrdID
+  Side side = 3;              // FIX tag 54
+  double order_qty = 4;       // FIX tag 38 (qty being canceled)
+}

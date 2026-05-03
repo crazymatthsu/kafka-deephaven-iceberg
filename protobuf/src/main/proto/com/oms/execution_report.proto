@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package com.oms;
+
+option java_package = "com.oms";
+option java_multiple_files = true;
+
+import "com/oms/common.proto";
+
+// FIX 4.2 ExecutionReport (35=8)
+message ExecutionReport {
+  Header header = 1;          // header.cl_ord_id mirrors the inbound being acked
+  string order_id = 2;        // FIX tag 37 — unique per parent, stable across chain
+  string exec_id = 3;         // FIX tag 17 — unique forever
+  ExecType exec_type = 4;     // FIX tag 150
+  OrdStatus ord_status = 5;   // FIX tag 39
+  Side side = 6;              // FIX tag 54
+  OrdType ord_type = 7;       // FIX tag 40
+
+  double order_qty = 8;       // FIX tag 38
+  double cum_qty = 9;         // FIX tag 14
+  double leaves_qty = 10;     // FIX tag 151 — invariant: order_qty == cum_qty + leaves_qty
+  double last_qty = 11;       // FIX tag 32 (only on (partial) fill)
+  double last_px = 12;        // FIX tag 31 (only on (partial) fill)
+  double price = 13;          // FIX tag 44 (limit price; LIMIT only)
+  double avg_px = 14;         // FIX tag 6
+  bool has_price = 15;
+  bool has_last = 16;
+}

@@ -1,0 +1,91 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: oms-minio
+    hostname: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_PORT_S3:-9000}:9000"
+      - "${MINIO_PORT_CONSOLE:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-adminadmin}
+    volumes:
+      - ../../data/minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - oms-net
+
+  minio-mc-init:
+    image: minio/mc:latest
+    container_name: oms-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" &&
+        mc mb --ignore-existing local/${MINIO_BUCKET:-iceberg-warehouse} &&
+        mc anonymous set download local/${MINIO_BUCKET:-iceberg-warehouse} || true
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-adminadmin}
+    restart: "no"
+    networks:
+      - oms-net
+
+  iceberg-rest:
+    image: apache/iceberg-rest-fixture:1.5.2
+    container_name: oms-iceberg-rest
+    hostname: iceberg-rest
+    depends_on:
+      minio:
+        condition: service_healthy
+    ports:
+      - "${ICEBERG_REST_PORT:-8181}:8181"
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-admin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-adminadmin}
+      AWS_REGION: us-east-1
+      CATALOG_WAREHOUSE: s3a://${MINIO_BUCKET:-iceberg-warehouse}/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+    networks:
+      - oms-net
+
+  deephaven:
+    image: kafka-deephaven-iceberg/dh-server:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: oms-deephaven
+    hostname: deephaven
+    depends_on:
+      iceberg-rest:
+        condition: service_started
+    ports:
+      - "${DEEPHAVEN_PORT:-10000}:10000"
+    environment:
+      START_OPTS: "-Xmx4g -Ddeephaven.console.type=python"
+      KAFKA_BOOTSTRAP: ${KAFKA_BOOTSTRAP_INTERNAL:-kafka:9092}
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-oms-fix-proto}
+      ICEBERG_CATALOG_URI: http://iceberg-rest:8181
+      ICEBERG_WAREHOUSE: s3a://${MINIO_BUCKET:-iceberg-warehouse}/
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-adminadmin}
+      MINIO_ENDPOINT: http://minio:9000
+    volumes:
+      - ../../deephaven-oms/app.d:/app/app.d:ro
+    networks:
+      - oms-net
+
+networks:
+  oms-net:
+    name: ${COMPOSE_NETWORK:-oms-net}
+    external: true

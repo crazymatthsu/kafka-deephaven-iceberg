@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package com.oms;
+
+option java_package = "com.oms";
+option java_multiple_files = true;
+
+import "google/protobuf/timestamp.proto";
+
+enum Side {
+  SIDE_UNSPECIFIED = 0; // FIX tag 54
+  SIDE_BUY = 1;
+  SIDE_SELL = 2;
+  SIDE_SELL_SHORT = 3;
+}
+
+enum OrdType {
+  ORD_TYPE_UNSPECIFIED = 0; // FIX tag 40
+  ORD_TYPE_MARKET = 1;
+  ORD_TYPE_LIMIT = 2;
+}
+
+enum TimeInForce {
+  TIF_UNSPECIFIED = 0; // FIX tag 59
+  TIF_DAY = 1;
+  TIF_GTC = 2;
+  TIF_IOC = 3;
+  TIF_FOK = 4;
+}
+
+enum ExecType {
+  EXEC_TYPE_UNSPECIFIED = 0; // FIX tag 150
+  EXEC_TYPE_NEW = 1;
+  EXEC_TYPE_PARTIAL_FILL = 2;
+  EXEC_TYPE_FILL = 3;
+  EXEC_TYPE_CANCELED = 4;
+  EXEC_TYPE_REPLACED = 5;
+  EXEC_TYPE_REJECTED = 6;
+}
+
+enum OrdStatus {
+  ORD_STATUS_UNSPECIFIED = 0; // FIX tag 39
+  ORD_STATUS_NEW = 1;
+  ORD_STATUS_PARTIALLY_FILLED = 2;
+  ORD_STATUS_FILLED = 3;
+  ORD_STATUS_CANCELED = 4;
+  ORD_STATUS_REPLACED = 5;
+  ORD_STATUS_REJECTED = 6;
+}
+
+// Header carries fields common to every OMS message.
+message Header {
+  string cl_ord_id = 1;                          // FIX tag 11
+  string account = 2;                            // FIX tag 1
+  string symbol = 3;                             // FIX tag 55
+  google.protobuf.Timestamp transact_time = 4;   // FIX tag 60
+  string msg_type = 5;                           // FIX tag 35 ("D","G","F","8")
+  string sender_comp_id = 6;                     // FIX tag 49
+  string target_comp_id = 7;                     // FIX tag 56
+}
